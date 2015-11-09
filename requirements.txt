@@ -1,0 +1,3 @@
+-e git+http://git.direct-netware.de/pas/database_ownable/#egg=pas_database_ownable
+-e git+http://git.direct-netware.de/pas/datalinker/#egg=pas_datalinker
+-e git+http://git.direct-netware.de/pas/file_store/#egg=pas_file_store
