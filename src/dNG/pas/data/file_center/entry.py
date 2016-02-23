@@ -256,7 +256,7 @@ Insert the instance into the database.
 				if (isinstance(parent_object, Entry)): self.local.db_instance.mimetype = parent_object.get_mimetype()
 			#
 
-			data_missing = (self.is_data_attribute_none("owner_type", "guest_permission", "user_permission"))
+			data_missing = self.is_data_attribute_none("owner_type", "guest_permission", "user_permission")
 			acl_missing = (len(self.local.db_instance.rel_acl) == 0)
 			parent_object = (self.load_parent() if (data_missing or acl_missing) else None)
 
