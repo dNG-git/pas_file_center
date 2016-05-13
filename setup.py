@@ -53,8 +53,11 @@ from os import path
 
 with TemporaryDirectory(dir = ".") as build_directory:
 #
-	parameters = { "pasFileCenterVersion": get_version() }
+	parameters = { "install_data_plain_copy_extensions": "sql",
+	               "pasFileCenterVersion": get_version()
+	             }
 
+	InstallData.add_install_data_callback(InstallData.plain_copy, [ "data" ])
 	InstallData.set_build_target_path(build_directory)
 	InstallData.set_build_target_parameters(parameters)
 
@@ -64,10 +67,12 @@ with TemporaryDirectory(dir = ".") as build_directory:
 	      version = get_version(),
 	      description = "Python Application Services",
 	      long_description = """"pas_file_center" provides an DataLinker driven, linkable file storage.""",
-	      author = "direct Netware Group",
+	      author = "direct Netware Group et al.",
 	      author_email = "web@direct-netware.de",
 	      license = "GPLv2+",
 	      url = "https://www.direct-netware.de/redirect?pas;file_center",
+
+	      platforms = [ "any" ],
 
 	      package_dir = { "": _build_path },
 	      packages = [ "dNG" ],
