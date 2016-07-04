@@ -61,6 +61,15 @@ class Entry(DataLinker, OwnableLockableReadMixin):
              GNU General Public License 2
 	"""
 
+	VFS_TYPE_DIRECTORY = 1
+	"""
+VFS container type
+	"""
+	VFS_TYPE_ITEM = 2
+	"""
+VFS item type
+	"""
+
 	_DB_INSTANCE_CLASS = _DbFileCenterEntry
 	"""
 SQLAlchemy database instance class to initialize for new instances.
@@ -126,7 +135,7 @@ python.org: Flush and close this stream.
 :since: v0.1.00
 		"""
 
-		if (self.vfs_object is not None):
+		if (self.vfs_object is not None and self.vfs_object.is_valid()):
 		#
 			self.flush()
 
@@ -145,7 +154,7 @@ Deletes this entry from the database.
 
 		with self, TransactionContext():
 		#
-			if (self.type & Entry.TYPE_CDS_CONTAINER == Entry.TYPE_CDS_CONTAINER):
+			if (self.type & Entry.VFS_TYPE_DIRECTORY == Entry.VFS_TYPE_DIRECTORY):
 			#
 				for entry in self.get_content_list(): entry.delete()
 			#
@@ -165,13 +174,13 @@ Checks or creates a new instance for the stored file.
 :since: v0.1.00
 		"""
 
-		if (self.vfs_object is None):
+		if (self.vfs_object is None or (not self.vfs_object.is_valid())):
 		#
 			with self:
 			#
-				vfs_uri = self.get_vfs_uri()
-				if (vfs_uri is None): raise ValueException("VFS URI not defined")
-				self.vfs_object = Implementation.load_vfs_uri(vfs_uri)
+				vfs_url = self.get_vfs_url()
+				if (vfs_url is None): raise ValueException("VFS URL not defined")
+				self.vfs_object = Implementation.load_vfs_url(vfs_url)
 			#
 		#
 	#
@@ -184,13 +193,17 @@ python.org: Flush the write buffers of the stream if applicable.
 :since: v0.1.03
 		"""
 
-		self._ensure_vfs_object_instance()
-		self.vfs_object.flush()
-
-		with self:
+		if (self.vfs_object is not None and self.vfs_object.is_valid()):
 		#
-			self.set_data_attributes(size = self.vfs_object.get_size())
-			self.save()
+			if (self.vfs_object.is_supported("flush")): self.vfs_object.flush()
+
+			entry_data = self.get_data_attributes("size")
+			vfs_size = self.vfs_object.get_size()
+
+			if (entry_data['size'] != vfs_size):
+			#
+				with self: self.set_data_attributes(size = vfs_size)
+			#
 		#
 	#
 
@@ -208,6 +221,7 @@ Returns the default sort definition list.
 		if (self.log_handler is not None): self.log_handler.debug("#echo(__FILEPATH__)# -{0!r}._get_default_sort_definition({1})- (#echo(__LINE__)#)", self, context, context = "pas_datalinker")
 
 		return (SortDefinition([ ( "position", SortDefinition.ASCENDING ),
+		                         ( "vfs_type", SortDefinition.ASCENDING ),
 		                         ( "title", SortDefinition.ASCENDING )
 		                       ])
 		        if (context == "Entry") else
@@ -228,11 +242,11 @@ Returns the VFS object of this file center entry.
 		return self.vfs_object
 	#
 
-	get_vfs_uri = DataLinker._wrap_getter("vfs_uri")
+	get_vfs_url = DataLinker._wrap_getter("vfs_url")
 	"""
-Returns the VFS URI of this instance.
+Returns the VFS URL of this instance.
 
-:return: (str) File center entry VFS URI; None if undefined
+:return: (str) File center entry VFS URL; None if undefined
 :since:  v0.1.00
 	"""
 
@@ -248,27 +262,53 @@ Insert the instance into the database.
 
 		DataLinker._insert(self)
 
+		is_acl_missing = (len(self.local.db_instance.rel_acl) == 0)
+		is_data_missing = self.is_data_attribute_none("owner_type")
+		is_directory_mimeclass = (self.local.db_instance.mimeclass == "directory")
+		is_permission_missing = self.is_data_attribute_none("guest_permission", "user_permission")
+
+		parent_object = (self.load_parent()
+		                 if (is_acl_missing or is_data_missing or is_directory_mimeclass or is_permission_missing) else
+		                 None
+		                )
+
+		if (is_data_missing and isinstance(parent_object, DataLinker)):
+		#
+			parent_data = parent_object.get_data_attributes("id_site")
+			if (self.local.db_instance.id_site is None and parent_data['id_site'] is not None): self.local.db_instance.id_site = parent_data['id_site']
+		#
+
+		if (is_directory_mimeclass and isinstance(parent_object, Entry)): self.local.db_instance.mimetype = parent_object.get_mimetype()
+
+		if (isinstance(parent_object, OwnableInstance)):
+		#
+			if (is_acl_missing): self._copy_acl_entries_from_instance(parent_object)
+			if (is_permission_missing): self._copy_default_permission_settings_from_instance(parent_object)
+		#
+	#
+
+	def save(self):
+	#
+		"""
+Saves changes of the database task instance.
+
+:since: v0.1.00
+		"""
+
 		with self, self.local.connection.no_autoflush:
 		#
-			if (self.local.db_instance.mimeclass == "directory"):
+			if (self.local.db_instance.vfs_type is None or self.local.db_instance.vfs_type == 0):
 			#
-				parent_object = self.load_parent()
-				if (isinstance(parent_object, Entry)): self.local.db_instance.mimetype = parent_object.get_mimetype()
-			#
+				self._ensure_vfs_object_instance()
 
-			data_missing = self.is_data_attribute_none("owner_type", "guest_permission", "user_permission")
-			acl_missing = (len(self.local.db_instance.rel_acl) == 0)
-			parent_object = (self.load_parent() if (data_missing or acl_missing) else None)
-
-			if (data_missing and isinstance(parent_object, OwnableInstance)):
-			#
-				parent_data = parent_object.get_data_attributes("id_site")
-				if (self.local.db_instance.id_site is None and parent_data['id_site'] is not None): self.local.db_instance.id_site = parent_data['id_site']
-
-				self._copy_default_permission_settings_from_instance(parent_object)
+				if (self.vfs_object is None):
+				#
+					if (self.local.db_instance.mimeclass == "directory"): self.local.db_instance.vfs_type = Entry.VFS_TYPE_DIRECTORY
+				#
+				else: self.local.db_instance.vfs_type = (Entry.VFS_TYPE_DIRECTORY if (self.vfs_object.is_directory()) else Entry.VFS_TYPE_ITEM)
 			#
 
-			# TODO: if (acl_missing and isinstance(parent_object, OwnableMixin)): self.data.acl_set_list(parent_object.data_acl_get_list())
+			DataLinker.save(self)
 		#
 	#
 
@@ -284,7 +324,7 @@ Sets values given as keyword arguments to this method.
 		#
 			DataLinker.set_data_attributes(self, **kwargs)
 
-			if ("vfs_uri" in kwargs): self.local.db_instance.vfs_uri = Binary.utf8(kwargs['vfs_uri'])
+			if ("vfs_url" in kwargs): self.local.db_instance.vfs_url = Binary.utf8(kwargs['vfs_url'])
 			if ("role_id" in kwargs): self.local.db_instance.role_id = Binary.utf8(kwargs['role_id'])
 			if ("owner_type" in kwargs): self.local.db_instance.owner_type = kwargs['owner_type']
 			if ("owner_id" in kwargs): self.local.db_instance.owner_id = kwargs['owner_id']
@@ -309,10 +349,10 @@ Sets an VFS object for this file center entry.
 		"""
 
 		if (not isinstance(vfs_object, Abstract)): raise ValueException("VFS object given is invalid")
-		if (self.get_vfs_uri() is not None): raise ValueException("Setting a VFS object is not supported if an VFS URI is already defined")
+		if (self.get_vfs_url() is not None): raise ValueException("Setting a VFS object is not supported if an VFS URL is already defined")
 
 		self.set_data_attributes(title = vfs_object.get_name(),
-		                         vfs_uri = vfs_object.get_uri(),
+		                         vfs_url = vfs_object.get_url(),
 		                         size = vfs_object.get_size()
 		                        )
 
@@ -346,25 +386,25 @@ Load Entry instance by its role ID.
 	#
 
 	@classmethod
-	def load_vfs_uri(cls, uri):
+	def load_vfs_url(cls, url):
 	#
 		"""
-Load Entry instance by its VFS URI.
+Load Entry instance by its VFS URL.
 
 :param cls: Expected encapsulating database instance class
-:param uri: VFS URI
+:param url: VFS URL
 
 :return: (object) Entry instance on success
 :since:  v0.1.00
 		"""
 
-		if (uri is None): raise NothingMatchedException("VFS URI is invalid")
+		if (url is None): raise NothingMatchedException("VFS URL is invalid")
 
 		with Connection.get_instance():
 		#
-			db_instance = DataLinker.get_db_class_query(cls).filter(_DbFileCenterEntry.vfs_uri == uri).first()
+			db_instance = DataLinker.get_db_class_query(cls).filter(_DbFileCenterEntry.vfs_url == url).first()
 
-			if (db_instance is None): raise NothingMatchedException("VFS URI '{0}' is invalid".format(uri))
+			if (db_instance is None): raise NothingMatchedException("VFS URL '{0}' is invalid".format(url))
 			DataLinker._ensure_db_class(cls, db_instance)
 
 			return Entry(db_instance)
@@ -381,7 +421,7 @@ Creates a new Entry instance for a file backed by an StoredFile instance.
 :since:  v0.1.00
 		"""
 
-		file_instance = Implementation.new_vfs_uri(Implementation.TYPE_FILE, "x-file-store://")
+		file_instance = Implementation.new_vfs_url(Implementation.TYPE_FILE, "x-file-store://")
 
 		_return = Entry()
 		_return.set_vfs_object(file_instance)
