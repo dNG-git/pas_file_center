@@ -33,9 +33,9 @@ https://www.direct-netware.de/redirect?licenses;gpl
 
 # pylint: disable=unused-argument
 
-from dNG.pas.database.schema import Schema
-from dNG.pas.module.named_loader import NamedLoader
-from dNG.pas.plugins.hook import Hook
+from dNG.database.schema import Schema
+from dNG.module.named_loader import NamedLoader
+from dNG.plugins.hook import Hook
 
 def after_apply_schema(params, last_return = None):
 #
@@ -49,7 +49,7 @@ Called for "dNG.pas.Database.applySchema.after"
 :since:  v0.1.00
 	"""
 
-	entry_class = NamedLoader.get_class("dNG.pas.database.instances.FileCenterEntry")
+	entry_class = NamedLoader.get_class("dNG.database.instances.FileCenterEntry")
 	Schema.apply_version(entry_class)
 
 	return last_return
@@ -66,7 +66,7 @@ Load and register all SQLAlchemy objects to generate database tables.
 :since: v0.1.00
 	"""
 
-	NamedLoader.get_class("dNG.pas.database.instances.FileCenterEntry")
+	NamedLoader.get_class("dNG.database.instances.FileCenterEntry")
 
 	return last_return
 #

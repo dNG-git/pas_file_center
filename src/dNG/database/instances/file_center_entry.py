@@ -32,7 +32,7 @@ https://www.direct-netware.de/redirect?licenses;gpl
 """
 
 from sqlalchemy.schema import Column, ForeignKey
-from sqlalchemy.types import BIGINT, BOOLEAN, CHAR, TEXT, VARCHAR
+from sqlalchemy.types import BIGINT, BOOLEAN, CHAR, INT, TEXT, VARCHAR
 
 from .data_linker import DataLinker
 from .ownable_mixin import OwnableMixin
@@ -42,7 +42,7 @@ class FileCenterEntry(DataLinker, OwnableMixin):
 	"""
 "FileCenterEntry" represents an database file center entry.
 
-:author:     direct Netware Group
+:author:     direct Netware Group et al.
 :copyright:  direct Netware Group - All rights reserved
 :package:    pas
 :subpackage: file_center
@@ -55,7 +55,7 @@ class FileCenterEntry(DataLinker, OwnableMixin):
 	"""
 SQLAlchemy table name
 	"""
-	db_instance_class = "dNG.pas.data.file_center.Entry"
+	db_instance_class = "dNG.data.file_center.Entry"
 	"""
 Encapsulating SQLAlchemy database instance class name
 	"""
@@ -68,9 +68,13 @@ Database schema version
 	"""
 file_center_entry.id
 	"""
-	vfs_uri = Column(TEXT, index = True)
+	vfs_url = Column(TEXT, index = True)
 	"""
-file_center_entry.vfs_uri
+file_center_entry.vfs_url
+	"""
+	vfs_type = Column(INT, index = True, server_default = "0", nullable = False)
+	"""
+file_center_entry.mimeclass
 	"""
 	role_id = Column(VARCHAR(100), index = True)
 	"""

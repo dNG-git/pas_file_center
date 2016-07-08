@@ -33,26 +33,26 @@ https://www.direct-netware.de/redirect?licenses;gpl
 
 # pylint: disable=import-error,no-name-in-module
 
-from dNG.pas.data.binary import Binary
-from dNG.pas.data.data_linker import DataLinker
-from dNG.pas.data.ownable_lockable_read_mixin import OwnableLockableReadMixin
-from dNG.pas.data.ownable_mixin import OwnableMixin as OwnableInstance
-from dNG.pas.database.connection import Connection
-from dNG.pas.database.lockable_mixin import LockableMixin
-from dNG.pas.database.nothing_matched_exception import NothingMatchedException
-from dNG.pas.database.sort_definition import SortDefinition
-from dNG.pas.database.transaction_context import TransactionContext
-from dNG.pas.database.instances.file_center_entry import FileCenterEntry as _DbFileCenterEntry
-from dNG.pas.vfs.abstract import Abstract
-from dNG.pas.vfs.implementation import Implementation
-from dNG.pas.runtime.value_exception import ValueException
+from dNG.data.binary import Binary
+from dNG.data.data_linker import DataLinker
+from dNG.data.ownable_lockable_read_mixin import OwnableLockableReadMixin
+from dNG.data.ownable_mixin import OwnableMixin as OwnableInstance
+from dNG.database.connection import Connection
+from dNG.database.instances.file_center_entry import FileCenterEntry as _DbFileCenterEntry
+from dNG.database.lockable_mixin import LockableMixin
+from dNG.database.nothing_matched_exception import NothingMatchedException
+from dNG.database.sort_definition import SortDefinition
+from dNG.database.transaction_context import TransactionContext
+from dNG.vfs.abstract import Abstract
+from dNG.vfs.implementation import Implementation
+from dNG.runtime.value_exception import ValueException
 
 class Entry(DataLinker, OwnableLockableReadMixin):
 #
 	"""
 "Entry" represents an database file center entry.
 
-:author:     direct Netware Group
+:author:     direct Netware Group et al.
 :copyright:  direct Netware Group - All rights reserved
 :package:    pas
 :subpackage: file_center
