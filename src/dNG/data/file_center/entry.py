@@ -43,9 +43,9 @@ from dNG.database.lockable_mixin import LockableMixin
 from dNG.database.nothing_matched_exception import NothingMatchedException
 from dNG.database.sort_definition import SortDefinition
 from dNG.database.transaction_context import TransactionContext
+from dNG.runtime.value_exception import ValueException
 from dNG.vfs.abstract import Abstract
 from dNG.vfs.implementation import Implementation
-from dNG.runtime.value_exception import ValueException
 
 class Entry(DataLinker, OwnableLockableReadMixin):
 #
@@ -135,11 +135,16 @@ python.org: Flush and close this stream.
 :since: v0.1.00
 		"""
 
-		if (self.vfs_object is not None and self.vfs_object.is_valid()):
+		if (self.vfs_object is not None):
 		#
-			self.flush()
-
-			try: self.vfs_object.close()
+			try:
+			#
+				if (self.vfs_object.is_valid()):
+				#
+					self.flush()
+					self.vfs_object.close()
+				#
+			#
 			finally: self.vfs_object = None
 		#
 	#
@@ -166,10 +171,12 @@ Deletes this entry from the database.
 		#
 	#
 
-	def _ensure_vfs_object_instance(self):
+	def _ensure_vfs_object_instance(self, readonly = False):
 	#
 		"""
 Checks or creates a new instance for the stored file.
+
+:param readonly: Open stored file in readonly mode
 
 :since: v0.1.00
 		"""
@@ -180,7 +187,7 @@ Checks or creates a new instance for the stored file.
 			#
 				vfs_url = self.get_vfs_url()
 				if (vfs_url is None): raise ValueException("VFS URL not defined")
-				self.vfs_object = Implementation.load_vfs_url(vfs_url)
+				self.vfs_object = Implementation.load_vfs_url(vfs_url, readonly)
 			#
 		#
 	#
@@ -229,16 +236,18 @@ Returns the default sort definition list.
 		       )
 	#
 
-	def get_vfs_object(self):
+	def get_vfs_object(self, readonly = False):
 	#
 		"""
 Returns the VFS object of this file center entry.
+
+:param readonly: Open stored file in readonly mode
 
 :return: VFS object referenced by this file center entry
 :since:  v0.1.00
 		"""
 
-		self._ensure_vfs_object_instance()
+		self._ensure_vfs_object_instance(readonly)
 		return self.vfs_object
 	#
 
@@ -299,13 +308,22 @@ Saves changes of the database task instance.
 		#
 			if (self.local.db_instance.vfs_type is None or self.local.db_instance.vfs_type == 0):
 			#
-				self._ensure_vfs_object_instance()
+				is_vfs_object_opened = (self.vfs_object is not None)
 
-				if (self.vfs_object is None):
+				self._ensure_vfs_object_instance(True)
+
+				try:
 				#
-					if (self.local.db_instance.mimeclass == "directory"): self.local.db_instance.vfs_type = Entry.VFS_TYPE_DIRECTORY
+					if (self.vfs_object is None):
+					#
+						if (self.local.db_instance.mimeclass == "directory"): self.local.db_instance.vfs_type = Entry.VFS_TYPE_DIRECTORY
+					#
+					else: self.local.db_instance.vfs_type = (Entry.VFS_TYPE_DIRECTORY if (self.vfs_object.is_directory()) else Entry.VFS_TYPE_ITEM)
 				#
-				else: self.local.db_instance.vfs_type = (Entry.VFS_TYPE_DIRECTORY if (self.vfs_object.is_directory()) else Entry.VFS_TYPE_ITEM)
+				finally:
+				#
+					if (not is_vfs_object_opened): self.close()
+				#
 			#
 
 			DataLinker.save(self)
