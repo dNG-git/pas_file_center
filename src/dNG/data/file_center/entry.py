@@ -37,12 +37,14 @@ from dNG.data.binary import Binary
 from dNG.data.data_linker import DataLinker
 from dNG.data.ownable_lockable_read_mixin import OwnableLockableReadMixin
 from dNG.data.ownable_mixin import OwnableMixin as OwnableInstance
+from dNG.data.settings import Settings
 from dNG.database.connection import Connection
 from dNG.database.instances.file_center_entry import FileCenterEntry as _DbFileCenterEntry
 from dNG.database.lockable_mixin import LockableMixin
 from dNG.database.nothing_matched_exception import NothingMatchedException
 from dNG.database.sort_definition import SortDefinition
 from dNG.database.transaction_context import TransactionContext
+from dNG.runtime.operation_not_supported_exception import OperationNotSupportedException
 from dNG.runtime.value_exception import ValueException
 from dNG.vfs.abstract import Abstract
 from dNG.vfs.implementation import Implementation
@@ -251,6 +253,14 @@ Returns the VFS object of this file center entry.
 		return self.vfs_object
 	#
 
+	get_vfs_type = DataLinker._wrap_getter("vfs_type")
+	"""
+Returns the VFS type of this instance.
+
+:return: (int) File center entry VFS type
+:since:  v0.1.00
+	"""
+
 	get_vfs_url = DataLinker._wrap_getter("vfs_url")
 	"""
 Returns the VFS URL of this instance.
@@ -294,6 +304,18 @@ Insert the instance into the database.
 			if (is_acl_missing): self._copy_acl_entries_from_instance(parent_object)
 			if (is_permission_missing): self._copy_default_permission_settings_from_instance(parent_object)
 		#
+	#
+
+	def is_vfs_type(self, vfs_type):
+	#
+		"""
+Returns true if this entry is of the given VFS type.
+
+:return: (bool) True if this entry is of the given VFS type
+:since:  v0.1.00
+		"""
+
+		return (self.get_vfs_type() == vfs_type)
 	#
 
 	def save(self):
@@ -343,6 +365,7 @@ Sets values given as keyword arguments to this method.
 			DataLinker.set_data_attributes(self, **kwargs)
 
 			if ("vfs_url" in kwargs): self.local.db_instance.vfs_url = Binary.utf8(kwargs['vfs_url'])
+			if ("vfs_type" in kwargs): self.local.db_instance.vfs_type = kwargs['vfs_type']
 			if ("role_id" in kwargs): self.local.db_instance.role_id = Binary.utf8(kwargs['role_id'])
 			if ("owner_type" in kwargs): self.local.db_instance.owner_type = kwargs['owner_type']
 			if ("owner_id" in kwargs): self.local.db_instance.owner_id = kwargs['owner_id']
@@ -397,6 +420,81 @@ Load Entry instance by its role ID.
 			db_instance = DataLinker.get_db_class_query(cls).filter(_DbFileCenterEntry.role_id == _id).first()
 
 			if (db_instance is None): raise NothingMatchedException("Role ID '{0}' is invalid".format(_id))
+			DataLinker._ensure_db_class(cls, db_instance)
+
+			return Entry(db_instance)
+		#
+	#
+
+	@classmethod
+	def load_or_create_owner_root_directory(cls, owner_id):
+	#
+		"""
+Load Entry instance of the root directory or create a new one for the given
+owner ID.
+
+:param cls: Expected encapsulating database instance class
+:param owner_id: Owner ID
+
+:return: (object) Entry instance on success
+:since:  v0.1.00
+		"""
+
+		try: _return = cls.load_owner_root_directory(owner_id)
+		except NothingMatchedException:
+		#
+			if (not Settings.get("pas_file_center_owner_root_directory_create_on_demand", True)): raise OperationNotSupportedException()
+
+			_return = Entry()
+
+			_return.set_as_main_entry()
+
+			_return.set_data_attributes(title = "/",
+			                            vfs_type = Entry.VFS_TYPE_DIRECTORY,
+			                            role_id = "owner_root",
+			                            owner_type = "u",
+			                            owner_id = owner_id,
+			                            mimeclass = "directory",
+			                            mimetype = "text/directory",
+			                            guest_permission = "r",
+			                            user_permission = "r"
+			                           )
+
+			_return.set_writable_for_user(owner_id)
+
+			_return.save()
+		#
+
+		return _return
+	#
+
+	@classmethod
+	def load_owner_root_directory(cls, owner_id):
+	#
+		"""
+Load Entry instance of the root directory for the given owner ID.
+
+:param cls: Expected encapsulating database instance class
+:param owner_id: Owner ID
+
+:return: (object) Entry instance on success
+:since:  v0.1.00
+		"""
+
+		if (owner_id is None): raise NothingMatchedException("Owner ID is invalid")
+
+		with Connection.get_instance():
+		#
+			db_instance = (DataLinker.get_db_class_query(cls)
+			               .filter(_DbFileCenterEntry.vfs_type == Entry.VFS_TYPE_DIRECTORY,
+			                       _DbFileCenterEntry.role_id == "owner_root",
+			                       _DbFileCenterEntry.owner_type == "u",
+			                       _DbFileCenterEntry.owner_id == owner_id
+			                      )
+			               .first()
+			              )
+
+			if (db_instance is None): raise NothingMatchedException("Owner ID '{0}' is invalid".format(owner_id))
 			DataLinker._ensure_db_class(cls, db_instance)
 
 			return Entry(db_instance)
