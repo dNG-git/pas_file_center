@@ -39,6 +39,7 @@ from dNG.data.ownable_lockable_read_mixin import OwnableLockableReadMixin
 from dNG.data.ownable_mixin import OwnableMixin as OwnableInstance
 from dNG.data.settings import Settings
 from dNG.database.connection import Connection
+from dNG.database.instances.data_linker import DataLinker as _DbDataLinker
 from dNG.database.instances.file_center_entry import FileCenterEntry as _DbFileCenterEntry
 from dNG.database.lockable_mixin import LockableMixin
 from dNG.database.nothing_matched_exception import NothingMatchedException
@@ -127,6 +128,32 @@ class tree for self).
 
 		self._ensure_vfs_object_instance()
 		return getattr(self.vfs_object, name)
+	#
+
+	def _apply_sub_entries_join_condition(self, db_query, context = None):
+	#
+		"""
+Returns the modified SQLAlchemy database query with the "join" condition
+applied.
+
+:param context: Sub entries request context
+
+:return: (object) SQLAlchemy database query
+:since:  v0.1.00
+		"""
+
+		if (self.log_handler is not None): self.log_handler.debug("#echo(__FILEPATH__)# -{0!r}._apply_sub_entries_condition()- (#echo(__LINE__)#)", self, context = "pas_datalinker")
+
+		_return = DataLinker._apply_sub_entries_join_condition(self, db_query, context)
+
+		if (context != "DataLinker"):
+		#
+			_return = _return.outerjoin(_DbFileCenterEntry,
+			                            _DbDataLinker.id == _DbFileCenterEntry.id
+			                           )
+		#
+
+		return _return
 	#
 
 	def close(self):
@@ -229,12 +256,13 @@ Returns the default sort definition list.
 
 		if (self.log_handler is not None): self.log_handler.debug("#echo(__FILEPATH__)# -{0!r}._get_default_sort_definition({1})- (#echo(__LINE__)#)", self, context, context = "pas_datalinker")
 
-		return (SortDefinition([ ( "position", SortDefinition.ASCENDING ),
+		return (DataLinker._get_default_sort_definition(self, context)
+		        if (context == "DataLinker") else
+		        SortDefinition([ ( "position", SortDefinition.ASCENDING ),
 		                         ( "vfs_type", SortDefinition.ASCENDING ),
-		                         ( "title", SortDefinition.ASCENDING )
+		                         ( "title", SortDefinition.ASCENDING ),
+		                         ( "time_sortable", SortDefinition.DESCENDING )
 		                       ])
-		        if (context == "Entry") else
-		        DataLinker._get_default_sort_definition(self, context)
 		       )
 	#
 
