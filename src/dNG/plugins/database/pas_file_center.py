@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-##j## BOF
 
 """
 direct PAS
@@ -38,8 +37,7 @@ from dNG.module.named_loader import NamedLoader
 from dNG.plugins.hook import Hook
 
 def after_apply_schema(params, last_return = None):
-#
-	"""
+    """
 Called for "dNG.pas.Database.applySchema.after"
 
 :param params: Parameter specified
@@ -47,52 +45,47 @@ Called for "dNG.pas.Database.applySchema.after"
 
 :return: (mixed) Return value
 :since:  v0.1.00
-	"""
+    """
 
-	entry_class = NamedLoader.get_class("dNG.database.instances.FileCenterEntry")
-	Schema.apply_version(entry_class)
+    entry_class = NamedLoader.get_class("dNG.database.instances.FileCenterEntry")
+    Schema.apply_version(entry_class)
 
-	return last_return
+    return last_return
 #
 
 def load_all(params, last_return = None):
-#
-	"""
+    """
 Load and register all SQLAlchemy objects to generate database tables.
 
 :param params: Parameter specified
 :param last_return: The return value from the last hook called.
 
 :since: v0.1.00
-	"""
+    """
 
-	NamedLoader.get_class("dNG.database.instances.FileCenterEntry")
+    NamedLoader.get_class("dNG.database.instances.FileCenterEntry")
 
-	return last_return
+    return last_return
 #
 
 def register_plugin():
-#
-	"""
+    """
 Register plugin hooks.
 
 :since: v0.1.00
-	"""
+    """
 
-	Hook.register("dNG.pas.Database.applySchema.after", after_apply_schema)
-	Hook.register("dNG.pas.Database.loadAll", load_all)
+    Hook.register("dNG.pas.Database.applySchema.after", after_apply_schema)
+    Hook.register("dNG.pas.Database.loadAll", load_all)
 #
 
 def unregister_plugin():
-#
-	"""
+    """
 Unregister plugin hooks.
 
 :since: v0.1.00
-	"""
+    """
 
-	Hook.unregister("dNG.pas.Database.applySchema.after", after_apply_schema)
-	Hook.unregister("dNG.pas.Database.loadAll", load_all)
+    Hook.unregister("dNG.pas.Database.applySchema.after", after_apply_schema)
+    Hook.unregister("dNG.pas.Database.loadAll", load_all)
 #
-
-##j## EOF
